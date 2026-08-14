@@ -1,0 +1,1185 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#include <stdint.h>
+#include <stddef.h>
+
+// Constants
+#define MAX_STUDENTS 200
+#define MAX_ENROLLMENTS 2000
+#define MAX_NAME 50
+#define MAX_EMAIL 50
+#define MAX_ID 12
+#define MAX_CODE 10
+#define MAX_COURSE_NAME 50
+#define MAX_PASSWORD 20
+#define FILE_STUDENTS "students.dat"
+#define FILE_ENROLLMENTS "enrollments.dat"
+#define MD5_HEX_SIZE 33
+
+typedef struct {
+    uint32_t state[4];
+    uint32_t count[2];
+    uint8_t  buffer[64];
+} MD5_CTX;
+
+#define F(x, y, z) (((x) & (y)) | ((~x) & (z)))
+#define G(x, y, z) (((x) & (z)) | ((y) & (~z)))
+#define H(x, y, z) (((x) ^ (y)) ^ (z))
+#define I(x, y, z) ((y) ^ ((x) | ~(z)))
+#define ROL(x, n) (((x) << (n)) | ((x) >> (32 - (n))))
+
+#define STEP(f, a, b, c, d, x, t, s)                       \
+    do {                                                    \
+        (a) += f((b),(c),(d)) + (x) + (uint32_t)(t);        \
+        (a) = ROL((a),(s));                                 \
+        (a) += (b);                                         \
+    } while (0)
+
+static void md5_transform(uint32_t state[4], const uint8_t block[64]) {
+    uint32_t a, b, c, d, x[16];
+
+    for (int i = 0; i < 16; i++) {
+        x[i] = (uint32_t)block[i*4]
+             | ((uint32_t)block[i*4 + 1] <<  8)
+             | ((uint32_t)block[i*4 + 2] << 16)
+             | ((uint32_t)block[i*4 + 3] << 24);
+    }
+
+    a = state[0]; b = state[1]; c = state[2]; d = state[3];
+
+    STEP(F, a, b, c, d, x[ 0], 0xd76aa478,  7);
+    STEP(F, d, a, b, c, x[ 1], 0xe8c7b756, 12);
+    STEP(F, c, d, a, b, x[ 2], 0x242070db, 17);
+    STEP(F, b, c, d, a, x[ 3], 0xc1bdceee, 22);
+    STEP(F, a, b, c, d, x[ 4], 0xf57c0faf,  7);
+    STEP(F, d, a, b, c, x[ 5], 0x4787c62a, 12);
+    STEP(F, c, d, a, b, x[ 6], 0xa8304613, 17);
+    STEP(F, b, c, d, a, x[ 7], 0xfd469501, 22);
+    STEP(F, a, b, c, d, x[ 8], 0x698098d8,  7);
+    STEP(F, d, a, b, c, x[ 9], 0x8b44f7af, 12);
+    STEP(F, c, d, a, b, x[10], 0xffff5bb1, 17);
+    STEP(F, b, c, d, a, x[11], 0x895cd7be, 22);
+    STEP(F, a, b, c, d, x[12], 0x6b901122,  7);
+    STEP(F, d, a, b, c, x[13], 0xfd987193, 12);
+    STEP(F, c, d, a, b, x[14], 0xa679438e, 17);
+    STEP(F, b, c, d, a, x[15], 0x49b40821, 22);
+
+    STEP(G, a, b, c, d, x[ 1], 0xf61e2562,  5);
+    STEP(G, d, a, b, c, x[ 6], 0xc040b340,  9);
+    STEP(G, c, d, a, b, x[11], 0x265e5a51, 14);
+    STEP(G, b, c, d, a, x[ 0], 0xe9b6c7aa, 20);
+    STEP(G, a, b, c, d, x[ 5], 0xd62f105d,  5);
+    STEP(G, d, a, b, c, x[10], 0x02441453,  9);
+    STEP(G, c, d, a, b, x[15], 0xd8a1e681, 14);
+    STEP(G, b, c, d, a, x[ 4], 0xe7d3fbc8, 20);
+    STEP(G, a, b, c, d, x[ 9], 0x21e1cde6,  5);
+    STEP(G, d, a, b, c, x[14], 0xc33707d6,  9);
+    STEP(G, c, d, a, b, x[ 3], 0xf4d50d87, 14);
+    STEP(G, b, c, d, a, x[ 8], 0x455a14ed, 20);
+    STEP(G, a, b, c, d, x[13], 0xa9e3e905,  5);
+    STEP(G, d, a, b, c, x[ 2], 0xfcefa3f8,  9);
+    STEP(G, c, d, a, b, x[ 7], 0x676f02d9, 14);
+    STEP(G, b, c, d, a, x[12], 0x8d2a4c8a, 20);
+
+    STEP(H, a, b, c, d, x[ 5], 0xfffa3942,  4);
+    STEP(H, d, a, b, c, x[ 8], 0x8771f681, 11);
+    STEP(H, c, d, a, b, x[11], 0x6d9d6122, 16);
+    STEP(H, b, c, d, a, x[14], 0xfde5380c, 23);
+    STEP(H, a, b, c, d, x[ 1], 0xa4beea44,  4);
+    STEP(H, d, a, b, c, x[ 4], 0x4bdecfa9, 11);
+    STEP(H, c, d, a, b, x[ 7], 0xf6bb4b60, 16);
+    STEP(H, b, c, d, a, x[10], 0xbebfbc70, 23);
+    STEP(H, a, b, c, d, x[13], 0x289b7ec6,  4);
+    STEP(H, d, a, b, c, x[ 0], 0xeaa127fa, 11);
+    STEP(H, c, d, a, b, x[ 3], 0xd4ef3085, 16);
+    STEP(H, b, c, d, a, x[ 6], 0x04881d05, 23);
+    STEP(H, a, b, c, d, x[ 9], 0xd9d4d039,  4);
+    STEP(H, d, a, b, c, x[12], 0xe6db99e5, 11);
+    STEP(H, c, d, a, b, x[15], 0x1fa27cf8, 16);
+    STEP(H, b, c, d, a, x[ 2], 0xc4ac5665, 23);
+
+    STEP(I, a, b, c, d, x[ 0], 0xf4292244,  6);
+    STEP(I, d, a, b, c, x[ 7], 0x432aff97, 10);
+    STEP(I, c, d, a, b, x[14], 0xab9423a7, 15);
+    STEP(I, b, c, d, a, x[ 5], 0xfc93a039, 21);
+    STEP(I, a, b, c, d, x[12], 0x655b59c3,  6);
+    STEP(I, d, a, b, c, x[ 3], 0x8f0ccc92, 10);
+    STEP(I, c, d, a, b, x[10], 0xffeff47d, 15);
+    STEP(I, b, c, d, a, x[ 1], 0x85845dd1, 21);
+    STEP(I, a, b, c, d, x[ 8], 0x6fa87e4f,  6);
+    STEP(I, d, a, b, c, x[15], 0xfe2ce6e0, 10);
+    STEP(I, c, d, a, b, x[ 6], 0xa3014314, 15);
+    STEP(I, b, c, d, a, x[13], 0x4e0811a1, 21);
+    STEP(I, a, b, c, d, x[ 4], 0xf7537e82,  6);
+    STEP(I, d, a, b, c, x[11], 0xbd3af235, 10);
+    STEP(I, c, d, a, b, x[ 2], 0x2ad7d2bb, 15);
+    STEP(I, b, c, d, a, x[ 9], 0xeb86d391, 21);
+
+    state[0] += a;
+    state[1] += b;
+    state[2] += c;
+    state[3] += d;
+}
+
+void md5_init(MD5_CTX *ctx) {
+    ctx->count[0] = ctx->count[1] = 0;
+    ctx->state[0] = 0x67452301;
+    ctx->state[1] = 0xefcdab89;
+    ctx->state[2] = 0x98badcfe;
+    ctx->state[3] = 0x10325476;
+}
+
+void md5_update(MD5_CTX *ctx, const uint8_t *input, size_t inputLen) {
+    uint32_t i, idx, partLen;
+
+    idx = (uint32_t)((ctx->count[0] >> 3) & 0x3F);
+
+    if ((ctx->count[0] += (uint32_t)inputLen << 3) < ((uint32_t)inputLen << 3))
+        ctx->count[1]++;
+    ctx->count[1] += (uint32_t)inputLen >> 29;
+
+    partLen = 64 - idx;
+
+    if (inputLen >= partLen) {
+        memcpy(&ctx->buffer[idx], input, partLen);
+        md5_transform(ctx->state, ctx->buffer);
+        for (i = partLen; i + 63 < inputLen; i += 64)
+            md5_transform(ctx->state, &input[i]);
+        idx = 0;
+    } else {
+        i = 0;
+    }
+
+    memcpy(&ctx->buffer[idx], &input[i], inputLen - i);
+}
+
+void md5_final(uint8_t digest[16], MD5_CTX *ctx) {
+    static const uint8_t padding[64] = { 0x80 };
+    uint8_t bits[8];
+    uint32_t idx, padLen;
+
+    for (int i = 0; i < 4; i++)
+        bits[i]     = (uint8_t)((ctx->count[0] >> (i * 8)) & 0xff);
+    for (int i = 0; i < 4; i++)
+        bits[4 + i] = (uint8_t)((ctx->count[1] >> (i * 8)) & 0xff);
+
+    idx = (uint32_t)((ctx->count[0] >> 3) & 0x3F);
+    padLen = (idx < 56) ? (56 - idx) : (120 - idx);
+
+    md5_update(ctx, padding, padLen);
+    md5_update(ctx, bits, 8);
+
+    for (int i = 0; i < 4; i++)
+        digest[i]      = (uint8_t)((ctx->state[0] >> (i * 8)) & 0xff);
+    for (int i = 0; i < 4; i++)
+        digest[4 + i]  = (uint8_t)((ctx->state[1] >> (i * 8)) & 0xff);
+    for (int i = 0; i < 4; i++)
+        digest[8 + i]  = (uint8_t)((ctx->state[2] >> (i * 8)) & 0xff);
+    for (int i = 0; i < 4; i++)
+        digest[12 + i] = (uint8_t)((ctx->state[3] >> (i * 8)) & 0xff);
+}
+
+void md5_hash_string(const char *input, char output[MD5_HEX_SIZE]) {
+    MD5_CTX ctx;
+    uint8_t digest[16];
+
+    md5_init(&ctx);
+    md5_update(&ctx, (const uint8_t *)input, strlen(input));
+    md5_final(digest, &ctx);
+
+    for (int i = 0; i < 16; i++)
+        sprintf(output + i * 2, "%02x", digest[i]);
+    output[32] = '\0';
+}
+
+void md5_hash_buffer(const uint8_t *input, size_t len, char output[MD5_HEX_SIZE]) {
+    MD5_CTX ctx;
+    uint8_t digest[16];
+
+    md5_init(&ctx);
+    md5_update(&ctx, input, len);
+    md5_final(digest, &ctx);
+
+    for (int i = 0; i < 16; i++)
+        sprintf(output + i * 2, "%02x", digest[i]);
+    output[32] = '\0';
+}
+
+// User roles
+typedef enum {
+    ROLE_ADMIN = 0,
+    ROLE_STAFF = 1,
+    ROLE_STUDENT = 2
+} UserRole;
+
+// Student structure
+typedef struct {
+    char student_id[MAX_ID];
+    char name[MAX_NAME];
+    char email[MAX_EMAIL];
+    int age;
+    int active;
+} Student;
+
+// Enrollment structure
+typedef struct {
+    char student_id[MAX_ID];
+    char course_code[MAX_CODE];
+    char course_name[MAX_COURSE_NAME];
+    float grade;
+    int active;
+} Enrollment;
+
+// Global data stores
+static Student students[MAX_STUDENTS];
+static int student_count = 0;
+static Enrollment enrollments[MAX_ENROLLMENTS];
+static int enrollment_count = 0;
+
+static const char *ADMIN_PASSWORD   = "admin";
+static const char *STAFF_PASSWORD   = "staff";
+static const char *STUDENT_PASSWORD = "student";
+
+// Function prototypes
+void load_data(void);
+void save_students(void);
+void save_enrollments(void);
+int is_duplicate_id(const char *id);
+void to_lower(char *str);
+int compare_strings_ignore_case(const char *s1, const char *s2);
+
+int login(void);
+void logout(void);
+
+void add_student(void);
+void view_all_students(void);
+void search_student(void);
+void update_student(void);
+void delete_student(void);
+
+void enroll_student(void);
+void drop_enrollment(void);
+void view_enrollments(const char *student_id);
+void update_grade(void);
+
+void student_transcript(const char *student_id);
+void course_roster(const char *course_code);
+void top_performers(void);
+
+float grade_to_gpa_points(float grade);
+const char* get_letter_grade(float grade);
+void clear_input_buffer(void);
+int get_int_input(const char *prompt, int min, int max);
+float get_float_input(const char *prompt, float min, float max);
+void get_string_input(char *buffer, size_t size, const char *prompt);
+
+void admin_menu(void);
+void staff_menu(void);
+void student_menu(char *student_id);
+void student_management_menu(void);
+void enrollment_management_menu(void);
+void grade_management_menu(void);
+void reporting_menu(void);
+
+void load_data(void) {
+    FILE *fp = fopen(FILE_STUDENTS, "rb");
+    if (fp) {
+        student_count = fread(students, sizeof(Student), MAX_STUDENTS, fp);
+        fclose(fp);
+    }
+
+    fp = fopen(FILE_ENROLLMENTS, "rb");
+    if (fp) {
+        enrollment_count = fread(enrollments, sizeof(Enrollment), MAX_ENROLLMENTS, fp);
+        fclose(fp);
+    }
+}
+
+void save_students(void) {
+    FILE *fp = fopen(FILE_STUDENTS, "wb");
+    if (fp) {
+        fwrite(students, sizeof(Student), student_count, fp);
+        fclose(fp);
+    }
+}
+
+void save_enrollments(void) {
+    FILE *fp = fopen(FILE_ENROLLMENTS, "wb");
+    if (fp) {
+        fwrite(enrollments, sizeof(Enrollment), enrollment_count, fp);
+        fclose(fp);
+    }
+}
+
+int login(void) {
+    char username[MAX_ID];
+    char password[MAX_PASSWORD];
+    char password_hash[MD5_HEX_SIZE];
+    char expected_hash[MD5_HEX_SIZE];
+
+    printf("\n===== LOGIN =====\n");
+    get_string_input(username, MAX_ID, "Username: ");
+    get_string_input(password, MAX_PASSWORD, "Password: ");
+
+    md5_hash_string(password, password_hash);
+
+    md5_hash_string(ADMIN_PASSWORD, expected_hash);
+    if (strcmp(username, "admin") == 0 && strcmp(password_hash, expected_hash) == 0) {
+        return ROLE_ADMIN;
+    }
+
+    md5_hash_string(STAFF_PASSWORD, expected_hash);
+    if (strcmp(username, "staff") == 0 && strcmp(password_hash, expected_hash) == 0) {
+        return ROLE_STAFF;
+    }
+
+    md5_hash_string(STUDENT_PASSWORD, expected_hash);
+    if (strcmp(username, "student") == 0 && strcmp(password_hash, expected_hash) == 0) {
+        return ROLE_STUDENT;
+    }
+
+    printf("Invalid username or password. Please try again.\n");
+    return -1;
+}
+
+void logout(void) {
+    /* nothing */
+}
+
+int is_duplicate_id(const char *id) {
+    for (int i = 0; i < student_count; i++) {
+        if (students[i].active && strcmp(students[i].student_id, id) == 0)
+            return 1;
+    }
+    return 0;
+}
+
+void to_lower(char *str) {
+    for (; *str; ++str) *str = tolower(*str);
+}
+
+int compare_strings_ignore_case(const char *s1, const char *s2) {
+    char s1_copy[MAX_NAME], s2_copy[MAX_NAME];
+    strncpy(s1_copy, s1, MAX_NAME-1);
+    strncpy(s2_copy, s2, MAX_NAME-1);
+    s1_copy[MAX_NAME-1] = s2_copy[MAX_NAME-1] = '\0';
+    to_lower(s1_copy);
+    to_lower(s2_copy);
+    return strcmp(s1_copy, s2_copy);
+}
+
+void add_student(void) {
+    if (student_count >= MAX_STUDENTS) {
+        printf("Error: Maximum student limit (%d) reached.\n", MAX_STUDENTS);
+        return;
+    }
+
+    Student new_student = {0};
+    new_student.active = 1;
+
+    printf("\n=== Add New Student ===\n");
+
+    while (1) {
+        get_string_input(new_student.student_id, MAX_ID, "Enter Student ID (max 11 chars): ");
+        if (strlen(new_student.student_id) == 0) {
+            printf("Error: Student ID cannot be empty.\n");
+            continue;
+        }
+        if (is_duplicate_id(new_student.student_id)) {
+            printf("Error: Student ID '%s' already exists.\n", new_student.student_id);
+            continue;
+        }
+        break;
+    }
+
+    get_string_input(new_student.name, MAX_NAME, "Enter Full Name: ");
+    get_string_input(new_student.email, MAX_EMAIL, "Enter Email Address: ");
+    new_student.age = get_int_input("Enter Age: ", 1, 120);
+
+    students[student_count++] = new_student;
+    save_students();
+    printf("\nStudent added successfully!\n");
+}
+
+void view_all_students(void) {
+    printf("\n=== All Students (%d active) ===\n", student_count);
+    if (student_count == 0) {
+        printf("No students found.\n");
+        return;
+    }
+
+    printf("%-12s %-30s %-30s %-5s\n", "Student ID", "Name", "Email", "Age");
+    printf("%-12s %-30s %-30s %-5s\n", "----------", "----", "-----", "---");
+
+    for (int i = 0; i < student_count; i++) {
+        if (students[i].active) {
+            printf("%-12s %-30s %-30s %-5d\n",
+                   students[i].student_id,
+                   students[i].name,
+                   students[i].email,
+                   students[i].age);
+        }
+    }
+}
+
+void search_student(void) {
+    char search_term[MAX_NAME];
+    get_string_input(search_term, MAX_NAME, "Enter search term (ID or name): ");
+
+    int found = 0;
+    printf("\n=== Search Results ===\n");
+    printf("%-12s %-30s %-30s %-5s\n", "Student ID", "Name", "Email", "Age");
+    printf("%-12s %-30s %-30s %-5s\n", "----------", "----", "-----", "---");
+
+    for (int i = 0; i < student_count; i++) {
+        if (!students[i].active) continue;
+        if (compare_strings_ignore_case(students[i].student_id, search_term) == 0 ||
+            compare_strings_ignore_case(students[i].name, search_term) == 0) {
+            printf("%-12s %-30s %-30s %-5d\n",
+                   students[i].student_id,
+                   students[i].name,
+                   students[i].email,
+                   students[i].age);
+            found = 1;
+        }
+    }
+
+    if (!found) printf("No matching students found.\n");
+}
+
+void update_student(void) {
+    char id[MAX_ID];
+    get_string_input(id, MAX_ID, "Enter Student ID to update: ");
+
+    int index = -1;
+    for (int i = 0; i < student_count; i++) {
+        if (students[i].active && strcmp(students[i].student_id, id) == 0) {
+            index = i;
+            break;
+        }
+    }
+
+    if (index == -1) {
+        printf("Error: Student ID '%s' not found.\n", id);
+        return;
+    }
+
+    Student *s = &students[index];
+    printf("\n=== Update Student (leave blank to keep current value) ===\n");
+    printf("Current: %s | %s | %s | %d\n",
+           s->student_id, s->name, s->email, s->age);
+
+    char name[MAX_NAME];
+    get_string_input(name, MAX_NAME, "Enter new Name (or leave blank): ");
+    if (strlen(name) > 0) strncpy(s->name, name, MAX_NAME-1);
+
+    char email[MAX_EMAIL];
+    get_string_input(email, MAX_EMAIL, "Enter new Email (or leave blank): ");
+    if (strlen(email) > 0) strncpy(s->email, email, MAX_EMAIL-1);
+
+    int age = get_int_input("Enter new Age (0 to keep current): ", 0, 120);
+    if (age > 0) s->age = age;
+
+    save_students();
+    printf("\nStudent updated successfully!\n");
+}
+
+void delete_student(void) {
+    char id[MAX_ID];
+    get_string_input(id, MAX_ID, "Enter Student ID to delete: ");
+
+    int index = -1;
+    for (int i = 0; i < student_count; i++) {
+        if (students[i].active && strcmp(students[i].student_id, id) == 0) {
+            index = i;
+            break;
+        }
+    }
+
+    if (index == -1) {
+        printf("Error: Student ID '%s' not found.\n", id);
+        return;
+    }
+
+    printf("Student found: %s (%s)\n", students[index].name, students[index].student_id);
+    char confirm;
+    printf("Are you sure you want to delete this student and all their enrollments? (y/N): ");
+    scanf(" %c", &confirm);
+    clear_input_buffer();
+
+    if (tolower(confirm) != 'y') {
+        printf("Deletion cancelled.\n");
+        return;
+    }
+
+    students[index].active = 0;
+
+    for (int i = 0; i < enrollment_count; i++) {
+        if (enrollments[i].active && strcmp(enrollments[i].student_id, id) == 0) {
+            enrollments[i].active = 0;
+        }
+    }
+
+    save_students();
+    save_enrollments();
+    printf("\nStudent and associated enrollments deleted successfully!\n");
+}
+
+void enroll_student(void) {
+    char student_id[MAX_ID];
+    get_string_input(student_id, MAX_ID, "Enter Student ID: ");
+
+    int student_index = -1;
+    for (int i = 0; i < student_count; i++) {
+        if (students[i].active && strcmp(students[i].student_id, student_id) == 0) {
+            student_index = i;
+            break;
+        }
+    }
+
+    if (student_index == -1) {
+        printf("Error: Student ID '%s' not found or inactive.\n", student_id);
+        return;
+    }
+
+    int current_enrollments = 0;
+    for (int i = 0; i < enrollment_count; i++) {
+        if (enrollments[i].active && strcmp(enrollments[i].student_id, student_id) == 0) {
+            current_enrollments++;
+        }
+    }
+
+    if (current_enrollments >= 10) {
+        printf("Error: Student is already enrolled in maximum 10 courses.\n");
+        return;
+    }
+
+    Enrollment new_enrollment = {0};
+    strcpy(new_enrollment.student_id, student_id);
+    new_enrollment.active = 1;
+    new_enrollment.grade = -1.0;
+
+    printf("\n=== Enroll in Course ===\n");
+    get_string_input(new_enrollment.course_code, MAX_CODE, "Enter Course Code: ");
+    get_string_input(new_enrollment.course_name, MAX_COURSE_NAME, "Enter Course Name: ");
+
+    for (int i = 0; i < enrollment_count; i++) {
+        if (enrollments[i].active &&
+            strcmp(enrollments[i].student_id, student_id) == 0 &&
+            strcmp(enrollments[i].course_code, new_enrollment.course_code) == 0) {
+            printf("Error: Student is already enrolled in this course.\n");
+            return;
+        }
+    }
+
+    enrollments[enrollment_count++] = new_enrollment;
+    save_enrollments();
+    printf("\nEnrollment successful!\n");
+}
+
+void drop_enrollment(void) {
+    char student_id[MAX_ID];
+    char course_code[MAX_CODE];
+    get_string_input(student_id, MAX_ID, "Enter Student ID: ");
+    get_string_input(course_code, MAX_CODE, "Enter Course Code: ");
+
+    int index = -1;
+    for (int i = 0; i < enrollment_count; i++) {
+        if (enrollments[i].active &&
+            strcmp(enrollments[i].student_id, student_id) == 0 &&
+            strcmp(enrollments[i].course_code, course_code) == 0) {
+            index = i;
+            break;
+        }
+    }
+
+    if (index == -1) {
+        printf("Error: Enrollment not found for Student ID '%s' and Course Code '%s'.\n",
+               student_id, course_code);
+        return;
+    }
+
+    printf("Enrollment found: %s (%s) - Grade: %.2f\n",
+           enrollments[index].course_name,
+           enrollments[index].course_code,
+           enrollments[index].grade);
+    char confirm;
+    printf("Are you sure you want to drop this enrollment? (y/N): ");
+    scanf(" %c", &confirm);
+    clear_input_buffer();
+
+    if (tolower(confirm) != 'y') {
+        printf("Drop cancelled.\n");
+        return;
+    }
+
+    enrollments[index].active = 0;
+    save_enrollments();
+    printf("\nEnrollment dropped successfully!\n");
+}
+
+void view_enrollments(const char *student_id) {
+    int found = 0;
+    printf("\n=== Enrollments%s ===\n",
+           student_id ? " for Student ID: " : " (All)");
+    if (student_id) printf("%s\n", student_id);
+
+    printf("%-12s %-20s %-20s %-30s %-8s %-12s\n",
+           "Student ID", "Course Code", "Course Name", "Grade", "Letter", "GPA");
+    printf("%-12s %-20s %-20s %-30s %-8s %-12s\n",
+           "----------", "----------", "----------", "------", "------", "--------");
+
+    for (int i = 0; i < enrollment_count; i++) {
+        if (!enrollments[i].active) continue;
+        if (student_id && strcmp(enrollments[i].student_id, student_id) != 0) continue;
+
+        char letter[3];
+        strcpy(letter, get_letter_grade(enrollments[i].grade));
+        float gpa = grade_to_gpa_points(enrollments[i].grade);
+
+        printf("%-12s %-20s %-20s %-30.2f %-8s %-12.2f\n",
+               enrollments[i].student_id,
+               enrollments[i].course_code,
+               enrollments[i].course_name,
+               enrollments[i].grade >= 0 ? enrollments[i].grade : -1.0,
+               letter,
+               gpa);
+        found = 1;
+    }
+
+    if (!found) {
+        if (student_id)
+            printf("No enrollments found for Student ID '%s'.\n", student_id);
+        else
+            printf("No enrollments found.\n");
+    }
+}
+
+void update_grade(void) {
+    char student_id[MAX_ID];
+    char course_code[MAX_CODE];
+    get_string_input(student_id, MAX_ID, "Enter Student ID: ");
+    get_string_input(course_code, MAX_CODE, "Enter Course Code: ");
+
+    int index = -1;
+    for (int i = 0; i < enrollment_count; i++) {
+        if (enrollments[i].active &&
+            strcmp(enrollments[i].student_id, student_id) == 0 &&
+            strcmp(enrollments[i].course_code, course_code) == 0) {
+            index = i;
+            break;
+        }
+    }
+
+    if (index == -1) {
+        printf("Error: Enrollment not found for Student ID '%s' and Course Code '%s'.\n",
+               student_id, course_code);
+        return;
+    }
+
+    printf("Current grade: %.2f (%s, GPA: %.2f)\n",
+           enrollments[index].grade >= 0 ? enrollments[index].grade : -1.0,
+           get_letter_grade(enrollments[index].grade),
+           grade_to_gpa_points(enrollments[index].grade));
+
+    float new_grade = get_float_input("Enter new grade (0.0-100.0): ", 0.0, 100.0);
+    enrollments[index].grade = new_grade;
+
+    save_enrollments();
+    printf("\nGrade updated successfully!\n");
+    printf("New grade: %.2f (%s, GPA: %.2f)\n",
+           enrollments[index].grade,
+           get_letter_grade(enrollments[index].grade),
+           grade_to_gpa_points(enrollments[index].grade));
+}
+
+void student_transcript(const char *student_id) {
+    int student_index = -1;
+    for (int i = 0; i < student_count; i++) {
+        if (students[i].active && strcmp(students[i].student_id, student_id) == 0) {
+            student_index = i;
+            break;
+        }
+    }
+
+    if (student_index == -1) {
+        printf("Error: Student ID '%s' not found.\n", student_id);
+        return;
+    }
+
+    Student *s = &students[student_index];
+    printf("\n=== STUDENT TRANSCRIPT ===\n");
+    printf("Student ID: %s\n", s->student_id);
+    printf("Name: %s\n", s->name);
+    printf("Email: %s\n", s->email);
+    printf("Age: %d\n\n", s->age);
+
+    printf("%-20s %-20s %-8s %-8s %-8s\n",
+           "Course Code", "Course Name", "Grade", "Letter", "GPA");
+    printf("%-20s %-20s %-8s %-8s %-8s\n",
+           "----------", "----------", "-----", "------", "---");
+
+    float total_gpa_points = 0.0;
+    int graded_count = 0;
+
+    for (int i = 0; i < enrollment_count; i++) {
+        if (enrollments[i].active &&
+            strcmp(enrollments[i].student_id, student_id) == 0 &&
+            enrollments[i].grade >= 0) {
+            printf("%-20s %-20s %-8.2f %-8s %-8.2f\n",
+                   enrollments[i].course_code,
+                   enrollments[i].course_name,
+                   enrollments[i].grade,
+                   get_letter_grade(enrollments[i].grade),
+                   grade_to_gpa_points(enrollments[i].grade));
+            total_gpa_points += grade_to_gpa_points(enrollments[i].grade);
+            graded_count++;
+        }
+    }
+
+    if (graded_count > 0) {
+        printf("\nCumulative GPA: %.2f (based on %d graded courses)\n",
+               total_gpa_points / graded_count, graded_count);
+    } else {
+        printf("\nNo graded courses found.\n");
+    }
+}
+
+void course_roster(const char *course_code) {
+    int found = 0;
+    float total_marks = 0.0;
+    int graded_count = 0;
+
+    printf("\n=== COURSE ROSTER: %s ===\n", course_code);
+    printf("%-12s %-30s %-8s %-8s %-8s\n",
+           "Student ID", "Student Name", "Grade", "Letter", "GPA");
+    printf("%-12s %-30s %-8s %-8s %-8s\n",
+           "----------", "------------", "-----", "------", "---");
+
+    for (int i = 0; i < enrollment_count; i++) {
+        if (enrollments[i].active &&
+            strcmp(enrollments[i].course_code, course_code) == 0 &&
+            enrollments[i].grade >= 0) {
+            char student_name[MAX_NAME] = "Unknown";
+            for (int j = 0; j < student_count; j++) {
+                if (students[j].active &&
+                    strcmp(students[j].student_id, enrollments[i].student_id) == 0) {
+                    strcpy(student_name, students[j].name);
+                    break;
+                }
+            }
+
+            printf("%-12s %-30s %-8.2f %-8s %-8.2f\n",
+                   enrollments[i].student_id,
+                   student_name,
+                   enrollments[i].grade,
+                   get_letter_grade(enrollments[i].grade),
+                   grade_to_gpa_points(enrollments[i].grade));
+            total_marks += enrollments[i].grade;
+            graded_count++;
+            found = 1;
+        }
+    }
+
+    if (found) {
+        printf("\nClass Average: %.2f (based on %d graded students)\n",
+               total_marks / graded_count, graded_count);
+    } else {
+        printf("No graded enrollments found for this course.\n");
+    }
+}
+
+void top_performers(void) {
+    typedef struct {
+        char student_id[MAX_ID];
+        char name[MAX_NAME];
+        float average_mark;
+        float gpa;
+    } StudentPerformance;
+
+    StudentPerformance performances[MAX_STUDENTS];
+    int count = 0;
+
+    for (int i = 0; i < student_count; i++) {
+        if (!students[i].active) continue;
+
+        float total_marks = 0.0;
+        int graded_count = 0;
+
+        for (int j = 0; j < enrollment_count; j++) {
+            if (enrollments[j].active &&
+                strcmp(enrollments[j].student_id, students[i].student_id) == 0 &&
+                enrollments[j].grade >= 0) {
+                total_marks += enrollments[j].grade;
+                graded_count++;
+            }
+        }
+
+        if (graded_count > 0) {
+            strcpy(performances[count].student_id, students[i].student_id);
+            strcpy(performances[count].name, students[i].name);
+            performances[count].average_mark = total_marks / graded_count;
+
+            float total_gpa = 0.0;
+            for (int j = 0; j < enrollment_count; j++) {
+                if (enrollments[j].active &&
+                    strcmp(enrollments[j].student_id, students[i].student_id) == 0 &&
+                    enrollments[j].grade >= 0) {
+                    total_gpa += grade_to_gpa_points(enrollments[j].grade);
+                }
+            }
+            performances[count].gpa = total_gpa / graded_count;
+            count++;
+        }
+    }
+
+    for (int i = 0; i < count - 1; i++) {
+        for (int j = i + 1; j < count; j++) {
+            if (performances[i].average_mark < performances[j].average_mark) {
+                StudentPerformance temp = performances[i];
+                performances[i] = performances[j];
+                performances[j] = temp;
+            }
+        }
+    }
+
+    printf("\n=== TOP PERFORMERS ===\n");
+    printf("%-12s %-30s %-12s %-8s\n",
+           "Student ID", "Name", "Average Mark", "GPA");
+    printf("%-12s %-30s %-12s %-8s\n",
+           "----------", "----", "-----------", "---");
+
+    int display_count = count < 10 ? count : 10;
+    for (int i = 0; i < display_count; i++) {
+        printf("%-12s %-30s %-12.2f %-8.2f\n",
+               performances[i].student_id,
+               performances[i].name,
+               performances[i].average_mark,
+               performances[i].gpa);
+    }
+
+    if (count == 0) {
+        printf("No students with graded courses found.\n");
+    }
+}
+
+float grade_to_gpa_points(float grade) {
+    if (grade < 0) return 0.0;
+    if (grade >= 90) return 4.00;
+    if (grade >= 85) return 3.70;
+    if (grade >= 80) return 3.30;
+    if (grade >= 75) return 3.00;
+    if (grade >= 70) return 2.70;
+    if (grade >= 65) return 2.30;
+    if (grade >= 60) return 2.00;
+    if (grade >= 55) return 1.70;
+    if (grade >= 50) return 1.30;
+    if (grade >= 45) return 1.00;
+    return 0.00;
+}
+
+const char* get_letter_grade(float grade) {
+    static char letter[3];
+    if (grade < 0) strcpy(letter, "NG");
+    else if (grade >= 90) strcpy(letter, "A+");
+    else if (grade >= 85) strcpy(letter, "A");
+    else if (grade >= 80) strcpy(letter, "A-");
+    else if (grade >= 75) strcpy(letter, "B+");
+    else if (grade >= 70) strcpy(letter, "B");
+    else if (grade >= 65) strcpy(letter, "B-");
+    else if (grade >= 60) strcpy(letter, "C+");
+    else if (grade >= 55) strcpy(letter, "C");
+    else if (grade >= 50) strcpy(letter, "C-");
+    else if (grade >= 45) strcpy(letter, "D");
+    else strcpy(letter, "F");
+    return letter;
+}
+
+void clear_input_buffer(void) {
+    int c;
+    while ((c = getchar()) != '\n' && c != EOF);
+}
+
+int get_int_input(const char *prompt, int min, int max) {
+    int value;
+    char input[100];
+
+    while (1) {
+        printf("%s", prompt);
+        if (fgets(input, sizeof(input), stdin) != NULL) {
+            if (sscanf(input, "%d", &value) == 1 && value >= min && value <= max) {
+                return value;
+            }
+            printf("Invalid input. Please enter an integer between %d and %d.\n", min, max);
+        }
+    }
+}
+
+float get_float_input(const char *prompt, float min, float max) {
+    float value;
+    char input[100];
+
+    while (1) {
+        printf("%s", prompt);
+        if (fgets(input, sizeof(input), stdin) != NULL) {
+            if (sscanf(input, "%f", &value) == 1 && value >= min && value <= max) {
+                return value;
+            }
+            printf("Invalid input. Please enter a number between %.2f and %.2f.\n", min, max);
+        }
+    }
+}
+
+void get_string_input(char *buffer, size_t size, const char *prompt) {
+    while (1) {
+        printf("%s", prompt);
+        if (fgets(buffer, size, stdin) != NULL) {
+            size_t len = strlen(buffer);
+            if (len > 0 && buffer[len-1] == '\n') {
+                buffer[len-1] = '\0';
+            } else {
+                int c;
+                while ((c = getchar()) != '\n' && c != EOF);
+            }
+            return;
+        }
+        printf("Input error. Please try again.\n");
+    }
+}
+
+void admin_menu(void) {
+    int choice;
+
+    do {
+        printf("\n===== ADMINISTRATOR MENU =====\n");
+        printf("1. Student Management\n");
+        printf("2. Course Enrollment Management\n");
+        printf("3. Grade Management\n");
+        printf("4. Reporting\n");
+        printf("0. Logout\n");
+        printf("Enter your choice: ");
+
+        choice = get_int_input("", 0, 4);
+
+        switch (choice) {
+            case 1: student_management_menu(); break;
+            case 2: enrollment_management_menu(); break;
+            case 3: grade_management_menu(); break;
+            case 4: reporting_menu(); break;
+            case 0: logout(); printf("Logged out.\n"); break;
+            default: printf("Invalid choice. Please try again.\n");
+        }
+    } while (choice != 0);
+}
+
+void staff_menu(void) {
+    int choice;
+
+    do {
+        printf("\n===== ACADEMIC STAFF MENU =====\n");
+        printf("1. Grade Management (Enter/Update Grades)\n");
+        printf("2. View Student Transcript\n");
+        printf("3. View Course Roster\n");
+        printf("4. View Top Performers\n");
+        printf("0. Logout\n");
+        printf("Enter your choice: ");
+
+        choice = get_int_input("", 0, 4);
+
+        switch (choice) {
+            case 1: grade_management_menu(); break;
+            case 2: {
+                char student_id[MAX_ID];
+                get_string_input(student_id, MAX_ID, "Enter Student ID: ");
+                student_transcript(student_id);
+                break;
+            }
+            case 3: {
+                char course_code[MAX_CODE];
+                get_string_input(course_code, MAX_CODE, "Enter Course Code: ");
+                course_roster(course_code);
+                break;
+            }
+            case 4: top_performers(); break;
+            case 0: logout(); printf("Logged out.\n"); break;
+            default: printf("Invalid choice. Please try again.\n");
+        }
+    } while (choice != 0);
+}
+
+void student_menu(char *student_id) {
+    int choice;
+
+    do {
+        printf("\n===== STUDENT MENU =====\n");
+        printf("Welcome, Student (ID: %s)\n", student_id);
+        printf("1. View My Transcript\n");
+        printf("2. View My Course Enrollments\n");
+        printf("0. Logout\n");
+        printf("Enter your choice: ");
+
+        choice = get_int_input("", 0, 2);
+
+        switch (choice) {
+            case 1: student_transcript(student_id); break;
+            case 2: view_enrollments(student_id); break;
+            case 0: logout(); printf("Logged out.\n"); break;
+            default: printf("Invalid choice. Please try again.\n");
+        }
+    } while (choice != 0);
+}
+
+void student_management_menu(void) {
+    int choice;
+
+    do {
+        printf("\n===== STUDENT MANAGEMENT MENU =====\n");
+        printf("1. Add Student\n");
+        printf("2. View All Students\n");
+        printf("3. Search Student\n");
+        printf("4. Update Student\n");
+        printf("5. Delete Student\n");
+        printf("0. Back to Admin Menu\n");
+        printf("Enter your choice: ");
+
+        choice = get_int_input("", 0, 5);
+
+        switch (choice) {
+            case 1: add_student(); break;
+            case 2: view_all_students(); break;
+            case 3: search_student(); break;
+            case 4: update_student(); break;
+            case 5: delete_student(); break;
+            case 0: printf("Returning to Admin Menu...\n"); break;
+            default: printf("Invalid choice. Please try again.\n");
+        }
+    } while (choice != 0);
+}
+
+void enrollment_management_menu(void) {
+    int choice;
+
+    do {
+        printf("\n===== ENROLLMENT MANAGEMENT MENU =====\n");
+        printf("1. Enroll Student\n");
+        printf("2. Drop Enrollment\n");
+        printf("3. View Enrollments\n");
+        printf("0. Back to Admin Menu\n");
+        printf("Enter your choice: ");
+
+        choice = get_int_input("", 0, 3);
+
+        switch (choice) {
+            case 1: enroll_student(); break;
+            case 2: drop_enrollment(); break;
+            case 3: {
+                char student_id[MAX_ID];
+                get_string_input(student_id, MAX_ID, "Enter Student ID (leave blank for all): ");
+                if (strlen(student_id) == 0) {
+                    view_enrollments(NULL);
+                } else {
+                    view_enrollments(student_id);
+                }
+                break;
+            }
+            case 0: printf("Returning to Admin Menu...\n"); break;
+            default: printf("Invalid choice. Please try again.\n");
+        }
+    } while (choice != 0);
+}
+
+void grade_management_menu(void) {
+    int choice;
+
+    do {
+        printf("\n===== GRADE MANAGEMENT MENU =====\n");
+        printf("1. Update Grade\n");
+        printf("0. Back to Admin Menu\n");
+        printf("Enter your choice: ");
+
+        choice = get_int_input("", 0, 1);
+
+        switch (choice) {
+            case 1: update_grade(); break;
+            case 0: printf("Returning to Admin Menu...\n"); break;
+            default: printf("Invalid choice. Please try again.\n");
+        }
+    } while (choice != 0);
+}
+
+void reporting_menu(void) {
+    int choice;
+
+    do {
+        printf("\n===== REPORTING MENU =====\n");
+        printf("1. Student Transcript\n");
+        printf("2. Course Roster\n");
+        printf("3. Top Performers\n");
+        printf("0. Back to Admin Menu\n");
+        printf("Enter your choice: ");
+
+        choice = get_int_input("", 0, 3);
+
+        switch (choice) {
+            case 1: {
+                char student_id[MAX_ID];
+                get_string_input(student_id, MAX_ID, "Enter Student ID: ");
+                student_transcript(student_id);
+                break;
+            }
+            case 2: {
+                char course_code[MAX_CODE];
+                get_string_input(course_code, MAX_CODE, "Enter Course Code: ");
+                course_roster(course_code);
+                break;
+            }
+            case 3: top_performers(); break;
+            case 0: printf("Returning to Admin Menu...\n"); break;
+            default: printf("Invalid choice. Please try again.\n");
+        }
+    } while (choice != 0);
+}
+
+int main(void) {
+    printf("Loading Student Information Management System...\n");
+    load_data();
+    printf("System loaded successfully! (%d students, %d enrollments)\n",
+           student_count, enrollment_count);
+
+    int role;
+    char student_id[MAX_ID] = {0};
+
+    do {
+        role = login();
+
+        if (role == ROLE_ADMIN) {
+            admin_menu();
+        }
+        else if (role == ROLE_STAFF) {
+            staff_menu();
+        }
+        else if (role == ROLE_STUDENT) {
+            do {
+                get_string_input(student_id, MAX_ID, "Enter your Student ID: ");
+                int valid = 0;
+                for (int i = 0; i < student_count; i++) {
+                    if (students[i].active && strcmp(students[i].student_id, student_id) == 0) {
+                        valid = 1;
+                        break;
+                    }
+                }
+                if (valid) {
+                    break;
+                }
+                printf("Invalid Student ID. Please try again.\n");
+            } while (1);
+
+            student_menu(student_id);
+        }
+    } while (role != -1);
+
+    printf("Exiting SIMS. Goodbye!\n");
+    return 0;
+}
