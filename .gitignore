@@ -1,0 +1,7 @@
+*.o
+sims
+sims.exe
+students.dat
+enrollments.dat
+.vscode/
+.idea/
