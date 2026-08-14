@@ -1,0 +1,118 @@
+// ============================================================================
+// STUDENT FUNCTIONALITIES
+// Use Cases (from diagram): View My Transcript, View My Course Enrollments,
+//                           Logout
+// NOTE: All functions operate on the LOGGED-IN student's own data only.
+//       The student_id parameter is the authenticated student's ID —
+//       students cannot view anyone else's data.
+// ============================================================================
+
+// --- Use Case: View My Transcript ---
+// Student views their own transcript (grades, GPA, all courses)
+void student_view_my_transcript(const char *student_id) {
+    int student_index = -1;
+    for (int i = 0; i < student_count; i++) {
+        if (students[i].active && strcmp(students[i].student_id, student_id) == 0) {
+            student_index = i;
+            break;
+        }
+    }
+
+    if (student_index == -1) {
+        printf("Error: Your student record could not be found.\n");
+        return;
+    }
+
+    Student *s = &students[student_index];
+    printf("\n=== MY TRANSCRIPT ===\n");
+    printf("Student ID: %s\n", s->student_id);
+    printf("Name: %s\n", s->name);
+    printf("Email: %s\n", s->email);
+    printf("Age: %d\n\n", s->age);
+
+    printf("%-20s %-20s %-8s %-8s %-8s\n",
+           "Course Code", "Course Name", "Grade", "Letter", "GPA");
+    printf("%-20s %-20s %-8s %-8s %-8s\n",
+           "----------", "----------", "-----", "------", "---");
+
+    float total_gpa_points = 0.0;
+    int graded_count = 0;
+
+    for (int i = 0; i < enrollment_count; i++) {
+        if (enrollments[i].active &&
+            strcmp(enrollments[i].student_id, student_id) == 0 &&
+            enrollments[i].grade >= 0) {
+            printf("%-20s %-20s %-8.2f %-8s %-8.2f\n",
+                   enrollments[i].course_code,
+                   enrollments[i].course_name,
+                   enrollments[i].grade,
+                   get_letter_grade(enrollments[i].grade),
+                   grade_to_gpa_points(enrollments[i].grade));
+            total_gpa_points += grade_to_gpa_points(enrollments[i].grade);
+            graded_count++;
+        }
+    }
+
+    if (graded_count > 0) {
+        printf("\nCumulative GPA: %.2f (based on %d graded courses)\n",
+               total_gpa_points / graded_count, graded_count);
+    } else {
+        printf("\nNo graded courses found.\n");
+    }
+}
+
+// --- Use Case: View My Course Enrollments ---
+// Student views only their own course enrollments
+void student_view_my_enrollments(const char *student_id) {
+    int found = 0;
+    printf("\n=== MY COURSE ENROLLMENTS ===\n");
+
+    printf("%-20s %-20s %-30s %-8s %-12s\n",
+           "Course Code", "Course Name", "Grade", "Letter", "GPA");
+    printf("%-20s %-20s %-30s %-8s %-12s\n",
+           "----------", "----------", "------", "------", "--------");
+
+    for (int i = 0; i < enrollment_count; i++) {
+        // Only show enrollments belonging to the logged-in student
+        if (!enrollments[i].active) continue;
+        if (strcmp(enrollments[i].student_id, student_id) != 0) continue;
+
+        char letter[3];
+        strcpy(letter, get_letter_grade(enrollments[i].grade));
+        float gpa = grade_to_gpa_points(enrollments[i].grade);
+
+        printf("%-20s %-20s %-30.2f %-8s %-12.2f\n",
+               enrollments[i].course_code,
+               enrollments[i].course_name,
+               enrollments[i].grade >= 0 ? enrollments[i].grade : -1.0,
+               letter,
+               gpa);
+        found = 1;
+    }
+
+    if (!found) {
+        printf("You have no active enrollments.\n");
+    }
+}
+
+// --- Student Menu (drives all student use cases) ---
+void student_menu(char *student_id) {
+    int choice;
+    do {
+        printf("\n===== STUDENT MENU =====\n");
+        printf("Welcome, Student (ID: %s)\n", student_id);
+        printf("1. View My Transcript\n");
+        printf("2. View My Course Enrollments\n");
+        printf("0. Logout\n");
+        printf("Enter your choice: ");
+
+        choice = get_int_input("", 0, 2);
+
+        switch (choice) {
+            case 1: student_view_my_transcript(student_id); break;   // View My Transcript
+            case 2: student_view_my_enrollments(student_id); break;   // View My Course Enrollments
+            case 0: logout(); printf("Logged out.\n"); break;          // Logout
+            default: printf("Invalid choice. Please try again.\n");
+        }
+    } while (choice != 0);
+}
