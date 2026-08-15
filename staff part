@@ -226,11 +226,11 @@ void staff_menu(void) {
         choice = get_int_input("", 0, 4);
 
         switch (choice) {
-            case 1: staff_update_grades(); break;          // Update Grades
-            case 2: staff_view_student_transcript(); break; // View Student Transcript
-            case 3: staff_view_course_roster(); break;      // View Course Roster
-            case 4: staff_view_top_performers(); break;     // View Top Performers
-            case 0: logout(); printf("Logged out.\n"); break; // Logout
+            case 1: staff_update_grades(); break;          
+            case 2: staff_view_student_transcript(); break; 
+            case 3: staff_view_course_roster(); break;      
+            case 4: staff_view_top_performers(); break;     
+            case 0: logout(); printf("Logged out.\n"); break; 
             default: printf("Invalid choice. Please try again.\n");
         }
     } while (choice != 0);
