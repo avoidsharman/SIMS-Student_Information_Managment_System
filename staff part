@@ -37,7 +37,6 @@ void staff_update_grades(void) {
 }
 
 // --- Use Case: View Student Transcript ---
-// Staff views the full transcript of any student (by entering their ID)
 void staff_view_student_transcript(void) {
     char student_id[MAX_ID];
     get_string_input(student_id, MAX_ID, "Enter Student ID: ");
