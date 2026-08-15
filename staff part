@@ -36,7 +36,6 @@ void staff_update_grades(void) {
            grade_to_gpa_points(enrollments[index].grade));
 }
 
-// --- Use Case: View Student Transcript ---
 void staff_view_student_transcript(void) {
     char student_id[MAX_ID];
     get_string_input(student_id, MAX_ID, "Enter Student ID: ");
@@ -92,7 +91,6 @@ void staff_view_student_transcript(void) {
     }
 }
 
-// --- Use Case: View Course Roster ---
 void staff_view_course_roster(void) {
     char course_code[MAX_CODE];
     get_string_input(course_code, MAX_CODE, "Enter Course Code: ");
@@ -140,7 +138,6 @@ void staff_view_course_roster(void) {
     }
 }
 
-// --- Use Case: View Top Performers ---
 void staff_view_top_performers(void) {
     typedef struct {
         char student_id[MAX_ID];
@@ -215,7 +212,6 @@ void staff_view_top_performers(void) {
     }
 }
 
-// --- Academic Staff Menu (drives all staff use cases) ---
 void staff_menu(void) {
     int choice;
     do {
