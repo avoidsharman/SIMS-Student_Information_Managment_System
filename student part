@@ -94,9 +94,9 @@ void student_menu(char *student_id) {
         choice = get_int_input("", 0, 2);
 
         switch (choice) {
-            case 1: student_view_my_transcript(student_id); break;   // View My Transcript
-            case 2: student_view_my_enrollments(student_id); break;   // View My Course Enrollments
-            case 0: logout(); printf("Logged out.\n"); break;          // Logout
+            case 1: student_view_my_transcript(student_id); break;   
+            case 2: student_view_my_enrollments(student_id); break;   
+            case 0: logout(); printf("Logged out.\n"); break;          
             default: printf("Invalid choice. Please try again.\n");
         }
     } while (choice != 0);
