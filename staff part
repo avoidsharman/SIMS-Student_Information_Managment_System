@@ -1,11 +1,3 @@
-// ============================================================================
-// ACADEMIC STAFF FUNCTIONALITIES
-// Use Cases (from diagram): Update Grades, View Student Transcript,
-//                           View Course Roster, View Top Performers, Logout
-// ============================================================================
-
-// --- Use Case: Update Grades ---
-// Staff enters/updates a grade for a specific student in a specific course
 void staff_update_grades(void) {
     char student_id[MAX_ID];
     char course_code[MAX_CODE];
@@ -102,7 +94,6 @@ void staff_view_student_transcript(void) {
 }
 
 // --- Use Case: View Course Roster ---
-// Staff views all students enrolled in a specific course (by entering course code)
 void staff_view_course_roster(void) {
     char course_code[MAX_CODE];
     get_string_input(course_code, MAX_CODE, "Enter Course Code: ");
@@ -151,7 +142,6 @@ void staff_view_course_roster(void) {
 }
 
 // --- Use Case: View Top Performers ---
-// Staff views the top 10 students based on average marks
 void staff_view_top_performers(void) {
     typedef struct {
         char student_id[MAX_ID];
