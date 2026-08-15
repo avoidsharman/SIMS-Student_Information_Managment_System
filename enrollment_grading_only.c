@@ -11,7 +11,7 @@
 #define MAX_COURSE_NAME 50
 #define FILE_ENROLLMENTS "enrollments.dat"
 
-/* Student structure needed by enrollment functions */
+
 typedef struct {
     char student_id[MAX_ID];
     char name[MAX_NAME];
@@ -20,7 +20,6 @@ typedef struct {
     int active;
 } Student;
 
-/* Enrollment structure */
 typedef struct {
     char student_id[MAX_ID];
     char course_code[MAX_CODE];
@@ -29,7 +28,6 @@ typedef struct {
     int active;
 } Enrollment;
 
-/* Data stores */
 static Student students[MAX_STUDENTS];
 static int student_count = 0;
 
@@ -37,7 +35,6 @@ static Enrollment enrollments[MAX_ENROLLMENTS];
 static int enrollment_count = 0;
 
 
-/* Function declarations */
 void save_enrollments(void);
 void enroll_student(void);
 void drop_enrollment(void);
@@ -52,7 +49,6 @@ float get_float_input(const char *prompt, float min, float max);
 void get_string_input(char *buffer, size_t size, const char *prompt);
 
 
-/* Save enrollment data */
 void save_enrollments(void) {
     FILE *fp = fopen(FILE_ENROLLMENTS, "wb");
 
@@ -63,7 +59,7 @@ void save_enrollments(void) {
 }
 
 
-/* Enroll Student */
+
 void enroll_student(void) {
     char student_id[MAX_ID];
     get_string_input(student_id, MAX_ID, "Enter Student ID: ");
@@ -135,7 +131,6 @@ void enroll_student(void) {
 }
 
 
-/* Drop Enrollment */
 void drop_enrollment(void) {
     char student_id[MAX_ID];
     char course_code[MAX_CODE];
@@ -190,7 +185,6 @@ void drop_enrollment(void) {
 }
 
 
-/* View Enrollments */
 void view_enrollments(const char *student_id) {
     int found = 0;
 
@@ -266,7 +260,6 @@ void view_enrollments(const char *student_id) {
 }
 
 
-/* Update Grade */
 void update_grade(void) {
     char student_id[MAX_ID];
     char course_code[MAX_CODE];
@@ -326,7 +319,7 @@ void update_grade(void) {
 }
 
 
-/* Grade-to-GPA conversion */
+
 float grade_to_gpa_points(float grade) {
     if (grade < 0) return 0.0;
     if (grade >= 90) return 4.00;
@@ -344,7 +337,6 @@ float grade_to_gpa_points(float grade) {
 }
 
 
-/* Grade-to-letter conversion */
 const char* get_letter_grade(float grade) {
     static char letter[3];
 
@@ -365,7 +357,6 @@ const char* get_letter_grade(float grade) {
 }
 
 
-/* Input helper functions required by enrollment/grading */
 void clear_input_buffer(void) {
     int c;
 
